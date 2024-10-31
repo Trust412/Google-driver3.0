@@ -4,11 +4,10 @@ import { motion } from 'framer-motion';
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
 import type { Engine } from "tsparticles-engine";
-import { useState } from 'react';
+
 
 function Home() {
-  const [hoverMode, setHoverMode] = useState<"connect" | "repulse">("connect");
-
+  
   const particlesInit = useCallback(async (engine: Engine) => {
     await loadSlim(engine);
   }, []);
@@ -115,7 +114,7 @@ function Home() {
               3.
             </span>
             <img
-              src="icons/Remove-bg.ai_17303586691411.png"
+              src="public/icons/Remove-bg.ai_17303586691411.png"
               alt="Logo"
               className="inline-block w-20 h-20 ml-1 -mt-5"
             />
