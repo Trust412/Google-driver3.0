@@ -5,7 +5,8 @@ import { Upload, File, Trash2 } from 'lucide-react';
 import { Wallet, Contract,JsonRpcProvider  } from 'ethers';
 import driveABI from './driveABI.json'; // Adjust the path if needed
 
-const contractAddress = '0xEA18aBEB85E2E4ECAD350df9146e0117BAE44Bb2';
+
+const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 interface UploadedFile {
   file: File;
   cid: string; // Store the IPFS CID
@@ -21,12 +22,19 @@ interface StoreProps {
 const Store: React.FC<StoreProps> = ({ user }) => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const password = 'your_secure_password'; // Use a strong password for encryption
   const username = user?.name;
+  const password = username || ''; // Use a strong password for encryption
+ 
+  const rpcUrl = import.meta.env.VITE_POLYGON_RPC_URL;
+  const privateKey = import.meta.env.VITE_PRIVATE_KEY;
 
-  const provider = new JsonRpcProvider('https://lb.drpc.org/ogrpc?network=polygon-amoy&dkey=An-QyfzI5kvrt0Zg3KnnpT8Qex57Uv0R77WAvmJKmvm9'); // Replace with your RPC URL
-  const signer = new Wallet('0e9d44bc4140e626d7f1b475e6c8ecbb281a87c7fb105e46df00dd3275754038', provider); // Replace with your private key
 
+  const provider = new JsonRpcProvider(rpcUrl); // Replace with your RPC URL
+  const signer = new Wallet(privateKey, provider); // Replace with your private key
+
+  if (!contractAddress) {
+    throw new Error('Environment variable CONTRACT_ADDRESS must be defined');
+  }
   const contract = new Contract(contractAddress, driveABI, signer);
 
 
@@ -93,8 +101,8 @@ const Store: React.FC<StoreProps> = ({ user }) => {
     const url = `https://api.pinata.cloud/pinning/unpin/${cid}`;
     const options = {
       headers: {
-        pinata_api_key: '30119575b1885a20aee9',
-        pinata_secret_api_key: '90dabc6701c4d066cf04008640c4c3bdcbcad6d8774d080b50b018479d675947',
+        pinata_api_key: import.meta.env.VITE_PINATA_API_KEY,
+        pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_API_KEY,
       },
     };
 
@@ -133,8 +141,8 @@ const Store: React.FC<StoreProps> = ({ user }) => {
 
     const options = {
       headers: {
-        pinata_api_key: '30119575b1885a20aee9',
-        pinata_secret_api_key: '90dabc6701c4d066cf04008640c4c3bdcbcad6d8774d080b50b018479d675947',
+        pinata_api_key: import.meta.env.VITE_PINATA_API_KEY,
+        pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_API_KEY,
       },
     };
 
