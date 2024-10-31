@@ -114,7 +114,7 @@ function Home() {
               3.
             </span>
             <img
-              src="public/icons/Remove-bg.ai_17303586691411.png"
+              src="icons/Remove-bg.ai_17303586691411.png"
               alt="Logo"
               className="inline-block w-20 h-20 ml-1 -mt-5"
             />
