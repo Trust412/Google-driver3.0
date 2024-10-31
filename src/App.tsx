@@ -15,7 +15,7 @@ function App() {
       case 'home':
         return <Home />;
       case 'store':
-        return <Store />;
+        return <Store user={user} />;
       case 'track':
         return <Track />;
       default:
