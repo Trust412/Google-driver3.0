@@ -24,7 +24,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
   const [isDragging, setIsDragging] = useState(false);
   const username = user?.name;
   const password = username || ''; // Use a strong password for encryption
- 
+  console.log("Username:",username);
   const rpcUrl = import.meta.env.VITE_POLYGON_RPC_URL;
   const privateKey = import.meta.env.VITE_PRIVATE_KEY;
 

@@ -4,8 +4,11 @@ import { motion } from 'framer-motion';
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
 import type { Engine } from "tsparticles-engine";
+import { useState } from 'react';
 
 function Home() {
+  const [hoverMode, setHoverMode] = useState<"connect" | "repulse">("connect");
+
   const particlesInit = useCallback(async (engine: Engine) => {
     await loadSlim(engine);
   }, []);
@@ -53,7 +56,35 @@ function Home() {
             size: {
               value: { min: 1, max: 3 }
             }
+          },
+          interactivity: {
+            events: {
+              onHover: {
+                enable: true,
+                mode: "connect" // Change mode to "connect"
+              },
+              onClick: {
+                enable: true,
+                mode: "push"
+              }
+            },
+            modes: {
+              connect: {
+                distance: 80, // Adjust distance for connection
+                lineLinked: {
+                  opacity: 0.5 // Adjust opacity for connection lines
+                }
+              },
+              repulse: {
+                distance: 100,
+                duration: 0.4
+              },
+              push: {
+                quantity: 4
+              }
+            }
           }
+          
         }}
         className="absolute inset-0"
       />
@@ -66,6 +97,7 @@ function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
+           
           <motion.h1
             initial={{ scale: 0.5 }}
             animate={{ scale: 1 }}
@@ -78,9 +110,15 @@ function Home() {
             <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient">
               GOOGLE DRIVE
             </span> <br />
+            
             <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient">
-              3.0
+              3.
             </span>
+            <img
+              src="icons/Remove-bg.ai_17303586691411.png"
+              alt="Logo"
+              className="inline-block w-20 h-20 ml-1 -mt-5"
+            />
           </motion.h1>
         </motion.div>
 

@@ -31,7 +31,17 @@ function App() {
         {/* Top section with logo and navigation */}
         <div>
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
-            {isSidebarOpen && <h1 className="text-xl font-bold">Drive 3.0</h1>}
+            {/* {isSidebarOpen && <h1 className="text-xl font-bold">Drive 3.0</h1>} */}
+            {isSidebarOpen && (
+              <div className="flex items-center">
+                <img 
+                  src="icons/Remove-bg.ai_17303586691411.png" 
+                  alt="Logo" 
+                  className="w-10 h-10 mr-3 " 
+                />
+                <h1 className="text-2xl font-bold">Drive 3.0</h1>
+              </div>
+            )}
             <button
               onClick={() => setSidebarOpen(!isSidebarOpen)}
               className="p-1 hover:bg-gray-700 rounded-lg transition-colors"
