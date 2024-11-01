@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { Upload, File, Trash2 } from 'lucide-react';
+import { Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock } from 'lucide-react';
 import { Wallet, Contract,JsonRpcProvider  } from 'ethers';
 import driveABI from './driveABI.json'; // Adjust the path if needed
 
@@ -22,8 +22,12 @@ interface StoreProps {
 const Store: React.FC<StoreProps> = ({ user }) => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [loading, setLoading] = useState(false); // State for loading status
   const username = user?.name;
   const password = username || ''; // Use a strong password for encryption
+  const [menuOpen, setMenuOpen] = useState<number | null>(null); // State to track which menu is open
+  const menuRefs = useRef<(HTMLDivElement | null)[]>([]); // Array of refs for each menu item
+
   console.log("Username:",username);
   const rpcUrl = import.meta.env.VITE_POLYGON_RPC_URL;
   const privateKey = import.meta.env.VITE_PRIVATE_KEY;
@@ -37,6 +41,32 @@ const Store: React.FC<StoreProps> = ({ user }) => {
   }
   const contract = new Contract(contractAddress, driveABI, signer);
 
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (menuOpen !== null) {
+      const currentMenuRef = menuRefs.current[menuOpen];
+      if (currentMenuRef && !currentMenuRef.contains(event.target as Node)) {
+        setMenuOpen(null);
+      }
+    }
+  }, [menuOpen]);
+
+
+  useEffect(() => {
+    if (menuOpen !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen, handleClickOutside]);
+
+
+  // Menu toggle handler
+  const handleMenuClick = (index: number) => {
+    setMenuOpen(menuOpen === index ? null : index);
+  };
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -120,6 +150,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
       return; // Exit if index is invalid
     }
     const uploadedFile = files[index];
+    setLoading(true);
     try {
       await unpinFileFromPinata(uploadedFile.cid);
       await contract.deleteFile(username, uploadedFile.file.name);
@@ -127,6 +158,8 @@ const Store: React.FC<StoreProps> = ({ user }) => {
       setFiles(prev => prev.filter((_, i) => i !== index));
     } catch (error) {
       console.error('Error removing file:', error);
+    }finally{
+      setLoading(false);
     }
   }, [files]);
 
@@ -145,7 +178,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
         pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_API_KEY,
       },
     };
-
+    setLoading(true);
     try {
       const response = await axios.post(url, formData, options);
       const cid = response.data.IpfsHash; // Get the IPFS CID from the response
@@ -157,10 +190,12 @@ const Store: React.FC<StoreProps> = ({ user }) => {
       setFiles(prev => [...prev, { file, cid, type: file.type }]);
     } catch (error) {
       console.error('Error uploading file to Pinata:', error);
+    }finally{
+      setLoading(false);
     }
   };
 
-  const handleDownload = async (cid: string,mimeType: string) => {
+  const handleDownload = async (cid: string,mimeType: string,filename:string) => {
     const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
     try {
       const response = await axios.get(url, { responseType: 'text' });
@@ -171,7 +206,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
       const downloadUrl = window.URL.createObjectURL(decryptedBlob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = 'decrypted_file'; // You can set a dynamic file name here
+      a.download = filename; // You can set a dynamic file name here
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -198,6 +233,17 @@ const Store: React.FC<StoreProps> = ({ user }) => {
 useEffect(() => {
     getFiles(); // Fetch files when component mounts
 }, [getFiles]);
+
+
+const handleShare = (file: UploadedFile) => {
+  console.log('Sharing file:', file);
+  // Implement share logic here
+};
+
+const handleShareConfidential = (file: UploadedFile) => {
+  console.log('Sharing file as confidential:', file);
+  // Implement confidential share logic here
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
@@ -230,7 +276,15 @@ useEffect(() => {
             </span>
           </label>
         </div>
-
+        {/* Loader */}
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50">
+            <div className="text-center">
+              <Loader2 className="w-16 h-16 text-white animate-spin" />
+              <p className="text-white mt-4">Processing...</p>
+            </div>
+          </div>
+        )}
         {/* File List */}
         {files.length > 0 && (
           <div className="bg-gray-800/50 rounded-xl p-6">
@@ -254,21 +308,71 @@ useEffect(() => {
                       </a>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="relative" >
                     <button
-                      onClick={() => handleDownload(uploadedFile.cid,uploadedFile.type)}
-                      className="p-2 hover:bg-blue-500/20 rounded-full transition-colors"
+                      onClick={() => handleMenuClick(index)}
+                      className="p-2 hover:bg-gray-600/20 rounded-full transition-colors"
                     >
-                      Download
+                      <MoreVertical className="w-5 h-5 text-gray-400" />
                     </button>
-                    <button
-                      onClick={() => removeFile(index)}
-                      className="p-2 hover:bg-red-500/20 rounded-full transition-colors"
-                    >
-                      <Trash2 className="w-5 h-5 text-red-400" />
-                    </button>
+                    {menuOpen === index && (
+                      <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-0 mt-2 w-12 bg-gray-800 rounded-md shadow-lg z-10">
+                        <button
+                          onClick={() => {
+                            handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
+                            setMenuOpen(null);
+                          }}
+                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                            Download
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleShare(uploadedFile);
+                            setMenuOpen(null);
+                          }}
+                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                        >
+                          <Share className="w-4 h-4 mr-2" />
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                            Share
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            removeFile(index);
+                            setMenuOpen(null);
+                          }}
+                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                            Delete
+                          </span>
+                        </button>
+                        <button
+                         onClick={() => {
+                          handleShareConfidential(uploadedFile);
+                          setMenuOpen(null);
+                        }}
+                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                        >
+                          <Lock className="w-4 h-4 mr-2" />
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                            Share as Confidential
+                          </span>
+                        </button>
+                      </div>
+                    )}
                   </div>
+
+
                 </div>
+                
+
               ))}
             </div>
           </div>

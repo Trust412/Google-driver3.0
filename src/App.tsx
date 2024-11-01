@@ -35,7 +35,7 @@ function App() {
             {isSidebarOpen && (
               <div className="flex items-center">
                 <img 
-                  src="icons/Remove-bg.ai_17303586691411.png" 
+                  src="icons/iconSecurity.png" 
                   alt="Logo" 
                   className="w-10 h-10 mr-3 " 
                 />
