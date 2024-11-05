@@ -4,13 +4,14 @@ import CryptoJS from 'crypto-js';
 import { Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock } from 'lucide-react';
 import { Wallet, Contract,JsonRpcProvider  } from 'ethers';
 import driveABI from './driveABI.json'; // Adjust the path if needed
-
+import SharePopup from './SharePopup';
 
 const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 interface UploadedFile {
   file: File;
   cid: string; // Store the IPFS CID
   type: string; // Store the original MIME type
+  password: string;
 }
 interface StoreProps {
   user?: {
@@ -24,9 +25,11 @@ const Store: React.FC<StoreProps> = ({ user }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false); // State for loading status
   const username = user?.name;
-  const password = username || ''; // Use a strong password for encryption
   const [menuOpen, setMenuOpen] = useState<number | null>(null); // State to track which menu is open
   const menuRefs = useRef<(HTMLDivElement | null)[]>([]); // Array of refs for each menu item
+  const [showSharePopup, setShowSharePopup] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<any>(null); // Adjust the type as necessary
+
 
   console.log("Username:",username);
   const rpcUrl = import.meta.env.VITE_POLYGON_RPC_URL;
@@ -94,7 +97,22 @@ const Store: React.FC<StoreProps> = ({ user }) => {
     }
   }, []);
 
-  const encryptFile = (file: File): Promise<string> => {
+  const generateRandomNumber = (): number => {
+    return Math.floor(Math.random() * 1000000); // Generate a random number
+  };
+  
+  // Function to create SHA-256 hash using filename and random number
+const generatePasswordFromFilename = (filename: string): string => {
+  const randomNumber = generateRandomNumber(); // Generate a random number
+  const combinedString = `${filename}-${randomNumber}`; // Combine filename and random number
+
+  // Generate SHA-256 hash from the combined string using crypto-js
+  const hash = CryptoJS.SHA256(combinedString).toString(CryptoJS.enc.Hex);
+  // console.log("Password:",hash);
+  return hash; // Use this hash as the password
+};
+
+  const encryptFile = (file: File, password: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -113,7 +131,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
     });
   };
 
-  const decryptFile = (encryptedData: string, mimeType: string): Blob => {
+  const decryptFile = (encryptedData: string, password: string, mimeType: string): Blob => {
     const decryptedData = CryptoJS.AES.decrypt(encryptedData, password);
     const decryptedBytes = decryptedData.toString(CryptoJS.enc.Base64);
     
@@ -166,9 +184,9 @@ const Store: React.FC<StoreProps> = ({ user }) => {
   const uploadFileToPinata = async (file: File) => {
     const url = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
     const formData = new FormData();
-    
+    const randomPassword = generatePasswordFromFilename(file.name); 
     // Encrypt the file before uploading
-    const encryptedFile = await encryptFile(file);
+    const encryptedFile = await encryptFile(file,randomPassword);
     // const blob = new Blob([encryptedFile], { type: 'application/octet-stream' }); // Adjust MIME type as necessary
     formData.append('file', new Blob([encryptedFile]), file.name); // Use original file name for better identification
 
@@ -184,10 +202,10 @@ const Store: React.FC<StoreProps> = ({ user }) => {
       const cid = response.data.IpfsHash; // Get the IPFS CID from the response
       console.log('File uploaded to Pinata:', response.data);
       
-      await contract.uploadFile(username, file.name, file.type, file.size, cid);
+      await contract.uploadFile(username, file.name, file.type, file.size, cid, randomPassword);
 
       // Update state with new file and its CID
-      setFiles(prev => [...prev, { file, cid, type: file.type }]);
+      setFiles(prev => [...prev, { file, cid, type: file.type, password: randomPassword }]);
     } catch (error) {
       console.error('Error uploading file to Pinata:', error);
     }finally{
@@ -198,9 +216,13 @@ const Store: React.FC<StoreProps> = ({ user }) => {
   const handleDownload = async (cid: string,mimeType: string,filename:string) => {
     const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
     try {
+
+      const owner = await contract.findFileOwner(cid);
+      const password = await contract.getFilePassword(cid, owner, username);
+
       const response = await axios.get(url, { responseType: 'text' });
       const encryptedData = response.data;
-      const decryptedBlob = decryptFile(encryptedData,mimeType);
+      const decryptedBlob = decryptFile(encryptedData,password,mimeType);
       
       // Create a download link for the decrypted file
       const downloadUrl = window.URL.createObjectURL(decryptedBlob);
@@ -235,11 +257,13 @@ useEffect(() => {
 }, [getFiles]);
 
 
-const handleShare = (file: UploadedFile) => {
-  console.log('Sharing file:', file);
-  // Implement share logic here
+const handleShare = (file: any) => {
+  setUploadedFile(file);
+    setShowSharePopup(true);
 };
-
+const closeSharePopup = () => {
+  setShowSharePopup(false); // Close the share popup
+};
 const handleShareConfidential = (file: UploadedFile) => {
   console.log('Sharing file as confidential:', file);
   // Implement confidential share logic here
@@ -316,7 +340,7 @@ const handleShareConfidential = (file: UploadedFile) => {
                       <MoreVertical className="w-5 h-5 text-gray-400" />
                     </button>
                     {menuOpen === index && (
-                      <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-0 mt-2 w-12 bg-gray-800 rounded-md shadow-lg z-10">
+                      <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-0 mt-2 w-10 bg-gray-800 rounded-md shadow-lg z-10">
                         <button
                           onClick={() => {
                             handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
@@ -341,18 +365,7 @@ const handleShareConfidential = (file: UploadedFile) => {
                             Share
                           </span>
                         </button>
-                        <button
-                          onClick={() => {
-                            removeFile(index);
-                            setMenuOpen(null);
-                          }}
-                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                            Delete
-                          </span>
-                        </button>
+                        
                         <button
                          onClick={() => {
                           handleShareConfidential(uploadedFile);
@@ -365,15 +378,36 @@ const handleShareConfidential = (file: UploadedFile) => {
                             Share as Confidential
                           </span>
                         </button>
+                        <button
+                          onClick={() => {
+                            removeFile(index);
+                            setMenuOpen(null);
+                          }}
+                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                            Delete
+                          </span>
+                        </button>
                       </div>
                     )}
                   </div>
-
+{/* Render SharePopup if it's open */}
+{showSharePopup && (
+        <SharePopup
+        // isOpen={showSharePopup}
+          cid={uploadedFile.cid} // Only send the cid
+          contract={contract}
+          onClose={closeSharePopup}
+        />
+      )}
 
                 </div>
                 
 
               ))}
+              
             </div>
           </div>
         )}
