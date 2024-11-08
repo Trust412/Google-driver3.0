@@ -286,7 +286,22 @@
 		"outputs": [
 			{
 				"internalType": "string",
-				"name": "",
+				"name": "password",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileCid",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileType",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "fileName",
 				"type": "string"
 			}
 		],

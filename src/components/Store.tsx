@@ -2,11 +2,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import { Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock } from 'lucide-react';
-import { Wallet, Contract,JsonRpcProvider  } from 'ethers';
-import driveABI from './driveABI.json'; // Adjust the path if needed
+import { Contract  } from 'ethers';
 import SharePopup from './SharePopup';
 
-const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+
 interface UploadedFile {
   file: File;
   cid: string; // Store the IPFS CID
@@ -19,8 +18,9 @@ interface StoreProps {
     email?: string;
     picture?: string;
   };
+  contract: Contract;
 }
-const Store: React.FC<StoreProps> = ({ user }) => {
+const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false); // State for loading status
@@ -32,18 +32,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
 
 
   console.log("Username:",username);
-  const rpcUrl = import.meta.env.VITE_POLYGON_RPC_URL;
-  const privateKey = import.meta.env.VITE_PRIVATE_KEY;
-
-
-  const provider = new JsonRpcProvider(rpcUrl); // Replace with your RPC URL
-  const signer = new Wallet(privateKey, provider); // Replace with your private key
-
-  if (!contractAddress) {
-    throw new Error('Environment variable CONTRACT_ADDRESS must be defined');
-  }
-  const contract = new Contract(contractAddress, driveABI, signer);
-
+  
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (menuOpen !== null) {
       const currentMenuRef = menuRefs.current[menuOpen];
@@ -105,10 +94,7 @@ const Store: React.FC<StoreProps> = ({ user }) => {
 const generatePasswordFromFilename = (filename: string): string => {
   const randomNumber = generateRandomNumber(); // Generate a random number
   const combinedString = `${filename}-${randomNumber}`; // Combine filename and random number
-
-  // Generate SHA-256 hash from the combined string using crypto-js
   const hash = CryptoJS.SHA256(combinedString).toString(CryptoJS.enc.Hex);
-  // console.log("Password:",hash);
   return hash; // Use this hash as the password
 };
 
@@ -340,7 +326,7 @@ const handleShareConfidential = (file: UploadedFile) => {
                       <MoreVertical className="w-5 h-5 text-gray-400" />
                     </button>
                     {menuOpen === index && (
-                      <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-0 mt-2 w-10 bg-gray-800 rounded-md shadow-lg z-10">
+                      <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-4 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10">
                         <button
                           onClick={() => {
                             handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
@@ -348,7 +334,7 @@ const handleShareConfidential = (file: UploadedFile) => {
                           }}
                           className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
                         >
-                          <Download className="w-4 h-4 mr-2" />
+                          <Download className="w-4 h-4 mr-2" /> Download
                           <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
                             Download
                           </span>
@@ -360,13 +346,13 @@ const handleShareConfidential = (file: UploadedFile) => {
                           }}
                           className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
                         >
-                          <Share className="w-4 h-4 mr-2" />
+                          <Share className="w-4 h-4 mr-2" />Share
                           <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
                             Share
                           </span>
                         </button>
                         
-                        <button
+                        {/* <button
                          onClick={() => {
                           handleShareConfidential(uploadedFile);
                           setMenuOpen(null);
@@ -377,7 +363,7 @@ const handleShareConfidential = (file: UploadedFile) => {
                           <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
                             Share as Confidential
                           </span>
-                        </button>
+                        </button> */}
                         <button
                           onClick={() => {
                             removeFile(index);
@@ -385,7 +371,7 @@ const handleShareConfidential = (file: UploadedFile) => {
                           }}
                           className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-4 h-4 mr-2" /> Unpin
                           <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
                             Delete
                           </span>
@@ -393,15 +379,15 @@ const handleShareConfidential = (file: UploadedFile) => {
                       </div>
                     )}
                   </div>
-{/* Render SharePopup if it's open */}
-{showSharePopup && (
-        <SharePopup
-        // isOpen={showSharePopup}
-          cid={uploadedFile.cid} // Only send the cid
-          contract={contract}
-          onClose={closeSharePopup}
-        />
-      )}
+                  {/* Render SharePopup if it's open */}
+                  {showSharePopup && (
+                    <SharePopup
+                      // isOpen={showSharePopup}
+                      cid={uploadedFile.cid} // Only send the cid
+                      contract={contract}
+                      onClose={closeSharePopup}
+                    />
+                  )}
 
                 </div>
                 

@@ -2,8 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Auth0Provider } from '@auth0/auth0-react';
 import App from './App.tsx';
-import AuthWrapper from './components/AuthWrapper.tsx';
+// import AuthWrapper from './components/AuthWrapper.tsx';
+import PrivateRoute from './components/PrivateRoute.tsx';
 import './index.css';
+import { BrowserRouter as Router } from 'react-router-dom';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -14,9 +16,9 @@ createRoot(document.getElementById('root')!).render(
         redirect_uri: window.location.origin
       }}
     >
-      <AuthWrapper>
+      <Router>
         <App />
-      </AuthWrapper>
+      </Router>
     </Auth0Provider>
   </StrictMode>
 );

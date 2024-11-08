@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SharePopupProps {
   cid: string;
@@ -12,17 +12,6 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const checkUserExists = async () => {
-    try {
-      const users = await contract.getUserList();
-      setUserExists(users.includes(username));
-      setError('');
-    } catch (err) {
-      console.error('Error checking user existence:', err);
-      setError('Error checking user existence.');
-    }
-  };
-
   const grantAccess = async () => {
     if (!userExists) return;
 
@@ -30,8 +19,9 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
     try {
       const owner = await contract.findFileOwner(cid); // Fetch the file owner
       await contract.grantAccess(cid, owner, username);
-      alert(`Access granted to ${username}`);
-      onClose(); // Close the modal after granting access
+      const shareableLink = `${window.location.origin}/file/${cid}?user=${username}`;
+      alert(`Access granted to ${username}. Share this link: ${shareableLink}`);
+      onClose(); 
     } catch (err) {
       console.error('Error granting access:', err);
       setError('Error granting access.');
@@ -40,43 +30,68 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
     }
   };
 
+  useEffect(() => {
+    const checkUserExists = async () => {
+      if (username === '') {
+        setUserExists(false);
+        setError('');
+        return;
+      }
+
+      setLoading(true); // Start loading when checking for user
+      try {
+        const users = await contract.getUserList();
+        setUserExists(users.includes(username));
+        setError('');
+      } catch (err) {
+        console.error('Error checking user existence:', err);
+        setError('Error checking user existence.');
+        setUserExists(false); // Reset if error occurs
+      } finally {
+        setLoading(false); // Stop loading after check
+      }
+    };
+
+    checkUserExists();
+  }, [username, contract]);
+
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-8 shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Share File</h2>
+      <div className="bg-gray-800 rounded-lg p-8 shadow-lg w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center text-">Share File</h2>
 
         {/* Username Input */}
         <input
           type="text"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => {
+             setUsername(e.target.value);
+             }}
           placeholder="Enter username"
           className="border text-black border-gray-300 p-3 w-full rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
-        {/* Check User Button */}
-        <button
-          onClick={checkUserExists}
-          className="bg-blue-600 text-white w-full py-2 rounded mb-4 hover:bg-blue-700 transition duration-300"
-        >
-          {loading ? 'Checking...' : 'Check User'}
-        </button>
-
-        {/* User Exists or Error Display */}
-        {userExists && (
-          <div className="text-center mt-4">
-            <button
-              onClick={grantAccess}
-              className="bg-green-500 text-white w-full py-2 rounded hover:bg-green-600 transition duration-300"
-              disabled={loading}
-            >
-              {loading ? 'Granting Access...' : 'Grant Access'}
-            </button>
-          </div>
+{loading ? (
+          <p className="text-blue-500 text-center mt-2">Checking user...</p>
+        ) : (
+          <>
+            {userExists && (
+              <div className="text-center mt-4">
+                <button
+                  onClick={grantAccess}
+                  className="bg-green-500 text-white w-full py-2 rounded hover:bg-green-600 transition duration-300"
+                  disabled={loading}
+                >
+                  Grant Access
+                </button>
+              </div>
+            )}
+            {!userExists && username && !loading && (
+              <p className="text-red-500 text-center mt-2">User does not exist.</p>
+            )}
+            {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+          </>
         )}
-
-        {!userExists && username && <p className="text-red-500 text-center mt-2">User does not exist.</p>}
-        {error && <p className="text-red-500 text-center mt-2">{error}</p>}
 
         {/* Close Button */}
         <button
