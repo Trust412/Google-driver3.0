@@ -8,8 +8,8 @@ import SharePopup from './SharePopup';
 
 interface UploadedFile {
   file: File;
-  cid: string; // Store the IPFS CID
-  type: string; // Store the original MIME type
+  cid: string; 
+  type: string; 
   password: string;
 }
 interface StoreProps {
@@ -29,10 +29,10 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const menuRefs = useRef<(HTMLDivElement | null)[]>([]); // Array of refs for each menu item
   const [showSharePopup, setShowSharePopup] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<any>(null); // Adjust the type as necessary
-
-
-  console.log("Username:",username);
+ 
   
+  
+
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (menuOpen !== null) {
       const currentMenuRef = menuRefs.current[menuOpen];
@@ -233,15 +233,18 @@ const generatePasswordFromFilename = (filename: string): string => {
             type: file.filetype
         })));
         setFiles(uploadedFiles);
+        sessionStorage.setItem('filesFetched', 'true');
     } catch (error) {
         console.error('Error retrieving files:', error);
     }
-}, []);
+}, [contract, username]);
+
+
 
 useEffect(() => {
-    getFiles(); // Fetch files when component mounts
+  console.log("Fetching files on initial mount");
+  getFiles();
 }, [getFiles]);
-
 
 const handleShare = (file: any) => {
   setUploadedFile(file);

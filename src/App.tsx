@@ -15,6 +15,9 @@ function App() {
   const { isLoading, isAuthenticated, user, logout, handleRedirectCallback,loginWithRedirect } = useAuth0();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
+  const [fileAccessData, setFileAccessData] = useState<{ cid: string; username: string } | null>(null);
+
+
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
@@ -64,7 +67,17 @@ function App() {
       case 'store':
         return <Store user={user} contract={contract} />;
       case 'fileaccess':  // Add this case
-        return <FileAccessCheck contract={contract} user={user} />;
+        // return <FileAccessCheck contract={contract} user={user} />;
+        return fileAccessData ? (
+          <FileAccessCheck
+            contract={contract}
+            user={user}
+            cid={fileAccessData.cid}
+            username={fileAccessData.username}
+          />
+        ) : (
+          <div>No file selected for access.</div>
+        );
       case 'track':
         return <Track />;
       default:
@@ -190,7 +203,7 @@ function App() {
             <Route path="/" element={<PrivateRoute>{renderContent()}</PrivateRoute>} />
             <Route path="/file/:cid" element={
               <PrivateRoute>
-                <FileAccessCheck contract={contract} user={user} />
+                <FileAccessCheck contract={contract} user={user} cid={fileAccessData?.cid ?? ''} username={fileAccessData?.username ?? ''} />
               </PrivateRoute>
             } />
           </Routes>
