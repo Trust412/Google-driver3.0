@@ -30,6 +30,20 @@ function App() {
 
 
   useEffect(() => {
+    // Parse URL parameters when the app loads
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const cid = params.get('cid');
+    const username = params.get('username');
+
+    // If we have file access parameters, set them and switch to fileaccess tab
+    if (tab === 'fileaccess' && cid && username) {
+      setActiveTab('fileaccess');
+      setFileAccessData({ cid, username });
+    }
+  }, []);
+
+  useEffect(() => {
     const handleAuthRedirect = async () => {
       // Check if the user is authenticated
       if (!isAuthenticated && !isLoading) {
@@ -68,16 +82,14 @@ function App() {
         return <Store user={user} contract={contract} />;
       case 'fileaccess':  // Add this case
         // return <FileAccessCheck contract={contract} user={user} />;
-        return fileAccessData ? (
+        return (
           <FileAccessCheck
             contract={contract}
             user={user}
-            cid={fileAccessData.cid}
-            username={fileAccessData.username}
+            cid={fileAccessData?.cid ?? ''}
+            username={fileAccessData?.username ?? ''}
           />
-        ) : (
-          <div>No file selected for access.</div>
-        );
+        ) 
       case 'track':
         return <Track />;
       default:
