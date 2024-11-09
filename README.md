@@ -49,30 +49,26 @@ cd google-drive-3.0
 ```
 Install Dependencies:
 
-bash
-Copy code
+```bash
 npm install
+```
 Set Up Environment Variables: Create a .env file in the root directory and add the environment variables mentioned above.
 
 Run the Application:
 
-bash
-Copy code
+```bash
 npm run dev
+```
+
 Build for Production: To create a production build, run:
 
-bash
-Copy code
+```bash
 npm run build
-Usage
-Uploading Files: Users can upload files, which are encrypted with AES encryption before being stored on IPFS via Pinata.
-Sharing Files: Owners can securely share encrypted files with other users and manage access permissions.
-Tracking Access: Owners can view a list of users who have access to each file and revoke access if needed.
-License
-This project is licensed under the MIT License. See the LICENSE file for details.
+```
+### Usage
+**Uploading Files**: Users can upload files, which are encrypted with AES encryption before being stored on IPFS via Pinata.
+**Sharing Files**: Owners can securely share encrypted files with other users and manage access permissions.
+**Tracking Access**: Owners can view a list of users who have access to each file and revoke access if needed.
 
-Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-Contact
-For any questions or feedback, please reach out to the project maintainer at your-email@example.com.
+### Contact
+For any questions or feedback, please reach out to the project maintainer at **pasupulaharsha7006@gmail.com**.
