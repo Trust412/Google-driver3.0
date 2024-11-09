@@ -44,8 +44,8 @@ Follow these steps to set up and run Google Drive 3.0 locally:
 
 ```bash
 
-git clone https://github.com/your-username/google-drive-3.0.git
-cd google-drive-3.0
+git clone https://github.com/Harsha6142611/GoogleDrive3.0.git
+cd GoogleDrive3.0
 ```
 Install Dependencies:
 
