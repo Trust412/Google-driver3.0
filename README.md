@@ -24,8 +24,54 @@ Google Drive 3.0 allows users to store and manage files in a decentralized way, 
 - **Vite**: Build tool for bundling the React application.
 - **Ethers.js**: Library for blockchain interaction.
 
-# Project File Structure
+### Environment Variables
 
-Here is an overview of the project's directory structure:
+In the root of your project, create a `.env` file and add the following variables. These are necessary for connecting to the blockchain, interacting with IPFS via Pinata, and accessing your smart contract.
 
-v1 ├── dist # Compiled distribution files ├── node_modules # Installed node modules ├── public # Public assets like images, icons, etc. ├── src # Source code │ ├── components # Reusable components for the UI │ │ ├── AuthWrapper.tsx # Handles user authentication and permissions │ │ ├── FileAccessCheck.tsx # Checks and validates file access permissions │ │ ├── Home.tsx # Home page component │ │ ├── PrivateRoute.tsx # Route protection for authenticated users │ │ ├── SharePopup.tsx # Popup for sharing files securely │ │ ├── Store.tsx # Manages decentralized storage operations │ │ └── Track.tsx # Tracks file access and permissions │ ├── App.tsx # Main application file │ ├── driveABI.json # ABI file for interacting with the smart contract │ ├── ipfs.ts # IPFS integration and functions │ ├── main.tsx # Application entry point │ ├── vite-env.d.ts # Environment variables for Vite │ ├── index.css # Global styling │ ├── index.html # HTML template │ └── .env # Environment variables ├── .gitignore # Git ignore file ├── eslint.config.js # ESLint configuration file ├── index.html # Main HTML template └── package-lock.json # Lock file for package dependencies
+```plaintext
+VITE_POLYGON_RPC_URL=          # Your Polygon RPC endpoint (e.g., from Infura or Alchemy)
+VITE_PRIVATE_KEY=              # Private key of the wallet used for blockchain transactions
+VITE_CONTRACT_ADDRESS=         # Deployed smart contract address
+VITE_PINATA_API_KEY=           # Pinata API key for IPFS storage
+VITE_PINATA_SECRET_API_KEY=    # Pinata secret API key for IPFS storage
+```
+
+
+###Getting Started
+Follow these steps to set up and run Google Drive 3.0 locally:
+
+Clone the Repository:
+
+bash
+Copy code
+git clone https://github.com/your-username/google-drive-3.0.git
+cd google-drive-3.0
+Install Dependencies:
+
+bash
+Copy code
+npm install
+Set Up Environment Variables: Create a .env file in the root directory and add the environment variables mentioned above.
+
+Run the Application:
+
+bash
+Copy code
+npm run dev
+Build for Production: To create a production build, run:
+
+bash
+Copy code
+npm run build
+Usage
+Uploading Files: Users can upload files, which are encrypted with AES encryption before being stored on IPFS via Pinata.
+Sharing Files: Owners can securely share encrypted files with other users and manage access permissions.
+Tracking Access: Owners can view a list of users who have access to each file and revoke access if needed.
+License
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+Contact
+For any questions or feedback, please reach out to the project maintainer at your-email@example.com.
