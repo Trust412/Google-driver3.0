@@ -23,6 +23,7 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
   const [viewedFiles, setViewedFiles] = useState<Set<string>>(
     new Set(JSON.parse(localStorage.getItem('viewedFiles') || '[]'))
   );
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get URL parameters
   const { cid: urlCid} = useParams();
@@ -241,6 +242,7 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
       fetchFileOwners(); // Replace fetchSharedFiles() with fetchFileOwners()
     }
   }, [contract, user]);
+  
   const fetchFileOwners = async () => {
     try {
       setLoading(true);
@@ -339,14 +341,43 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
     );
   }
 
+  const filteredSharedFiles = searchQuery.length >= 2
+    ? sharedFiles.filter(file => file[0].toLowerCase().includes(searchQuery.toLowerCase()))
+    : sharedFiles;
+
   const SharedFilesList = () => (
     <div className="mt-8">
-      <h3 className="text-xl font-bold text-white mb-4">Files Shared With You</h3>
-      {sharedFiles.length === 0 ? (
-        <p className="text-gray-400">No files have been shared with you yet.</p>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-bold text-white">Files Shared With You</h3>
+        
+        {/* Search input */}
+        <div className="relative w-72">
+          <input
+            type="text"
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-gray-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoFocus
+          />
+          <svg 
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+
+      {filteredSharedFiles.length === 0 ? (
+        <p className="text-gray-400">
+          {searchQuery.length >= 2 ? 'No matching files found.' : 'No files have been shared with you yet.'}
+        </p>
       ) : (
         <div className="grid gap-4">
-          {sharedFiles.map((file, index) => {
+          {filteredSharedFiles.map((file, index) => {
             const isViewed = viewedFiles.has(file[3]);
             return (
               <div 

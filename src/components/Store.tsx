@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock, Info } from 'lucide-react';
+import { Search, Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock, Info } from 'lucide-react';
 import { Contract  } from 'ethers';
 import SharePopup from './SharePopup';
 import InfoPopup from './InfoPopup';
@@ -32,8 +32,18 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const [uploadedFile, setUploadedFile] = useState<any>(null); // Adjust the type as necessary
   const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredFiles, setFilteredFiles] = useState<UploadedFile[]>([]);
+
   
-  
+useEffect(() => {
+  const filtered = searchQuery.length >= 2 
+    ? files.filter(file => file.file.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : files;
+  setFilteredFiles(filtered);
+}, [files, searchQuery]);
+
+
 
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (menuOpen !== null) {
@@ -268,6 +278,21 @@ const closeInfoPopup = () => {
   setSelectedFile(null);
 };
 
+const SearchBar = () => (
+  <div className="mb-4 relative">
+    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <input
+      type="text"
+      placeholder="Search files..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="w-full pl-10 pr-4 py-2 bg-gray-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      autoFocus
+      onBlur={(e) => e.target.focus()}
+    />
+  </div>
+);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
       <div className="max-w-4xl mx-auto">
@@ -311,112 +336,126 @@ const closeInfoPopup = () => {
         {/* File List */}
         {files.length > 0 && (
           <div className="bg-gray-800/50 rounded-xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Uploaded Files</h2>
-            <div className="space-y-3">
-              {files.map((uploadedFile, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between bg-gray-700/50 p-4 rounded-lg"
-                >
-                  <div className="flex items-center space-x-3">
-                    <File className="w-6 h-6 text-blue-400" />
-                    <div>
-                      <a
-                        href={`https://gateway.pinata.cloud/ipfs/${uploadedFile.cid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-blue-300 hover:underline"
-                      >
-                        {uploadedFile.file.name}
-                      </a>
-                    </div>
-                  </div>
-                  <div className="relative" >
-                    <button
-                      onClick={() => handleMenuClick(index)}
-                      className="p-2 hover:bg-gray-600/20 rounded-full transition-colors"
-                    >
-                      <MoreVertical className="w-5 h-5 text-gray-400" />
-                    </button>
-                    {menuOpen === index && (
-                      <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-4 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10">
-                        <button
-                          onClick={() => {
-                            handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
-                            setMenuOpen(null);
-                          }}
-                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                        >
-                          <Download className="w-4 h-4 mr-2" /> Download
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                            Download
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleShare(uploadedFile);
-                            setMenuOpen(null);
-                          }}
-                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                        >
-                          <Share className="w-4 h-4 mr-2" />Share
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                            Share
-                          </span>
-                        </button>
-                        
-                        {/* <button
-                         onClick={() => {
-                          handleShareConfidential(uploadedFile);
-                          setMenuOpen(null);
-                        }}
-                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                        >
-                          <Lock className="w-4 h-4 mr-2" />
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                            Share as Confidential
-                          </span>
-                        </button> */}
-                        <button
-                          onClick={() => handleInfo(uploadedFile)}
-                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                        >
-                          <Info className="w-4 h-4 mr-2" /> Info
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                            File Info
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            removeFile(index);
-                            setMenuOpen(null);
-                          }}
-                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" /> Unpin
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                            Delete
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {/* Render SharePopup if it's open */}
-                  {showSharePopup && (
-                    <SharePopup
-                      // isOpen={showSharePopup}
-                      cid={uploadedFile.cid} // Only send the cid
-                      contract={contract}
-                      onClose={closeSharePopup}
-                    />
-                  )}
-
-                </div>
-                
-
-              ))}
-              
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Uploaded Files</h2>
+              <p className="text-sm text-gray-400">
+                {filteredFiles.length} of {files.length} files
+              </p>
             </div>
+            
+            <SearchBar />
+
+            {filteredFiles.length === 0 && searchQuery !== '' ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No files match your search</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredFiles.map((uploadedFile, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between bg-gray-700/50 p-4 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <File className="w-6 h-6 text-blue-400" />
+                      <div>
+                        <a
+                          href={`https://gateway.pinata.cloud/ipfs/${uploadedFile.cid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-300 hover:underline"
+                        >
+                          {uploadedFile.file.name}
+                        </a>
+                      </div>
+                    </div>
+                    <div className="relative" >
+                      <button
+                        onClick={() => handleMenuClick(index)}
+                        className="p-2 hover:bg-gray-600/20 rounded-full transition-colors"
+                      >
+                        <MoreVertical className="w-5 h-5 text-gray-400" />
+                      </button>
+                      {menuOpen === index && (
+                        <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-4 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10">
+                          <button
+                            onClick={() => {
+                              handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
+                              setMenuOpen(null);
+                            }}
+                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                          >
+                            <Download className="w-4 h-4 mr-2" /> Download
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                              Download
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleShare(uploadedFile);
+                              setMenuOpen(null);
+                            }}
+                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                          >
+                            <Share className="w-4 h-4 mr-2" />Share
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                              Share
+                            </span>
+                          </button>
+                          
+                          {/* <button
+                           onClick={() => {
+                            handleShareConfidential(uploadedFile);
+                            setMenuOpen(null);
+                          }}
+                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                          >
+                            <Lock className="w-4 h-4 mr-2" />
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                              Share as Confidential
+                            </span>
+                          </button> */}
+                          <button
+                            onClick={() => handleInfo(uploadedFile)}
+                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                          >
+                            <Info className="w-4 h-4 mr-2" /> Info
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                              File Info
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              removeFile(index);
+                              setMenuOpen(null);
+                            }}
+                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" /> Unpin
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                              Delete
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Render SharePopup if it's open */}
+                    {showSharePopup && (
+                      <SharePopup
+                        // isOpen={showSharePopup}
+                        cid={uploadedFile.cid} // Only send the cid
+                        contract={contract}
+                        onClose={closeSharePopup}
+                      />
+                    )}
+
+                  </div>
+                  
+
+                ))}
+                
+              </div>
+            )}
           </div>
         )}
       </div>
