@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock } from 'lucide-react';
+import { Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock, Info } from 'lucide-react';
 import { Contract  } from 'ethers';
 import SharePopup from './SharePopup';
+import InfoPopup from './InfoPopup';
 
 
 interface UploadedFile {
@@ -29,7 +30,8 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const menuRefs = useRef<(HTMLDivElement | null)[]>([]); // Array of refs for each menu item
   const [showSharePopup, setShowSharePopup] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<any>(null); // Adjust the type as necessary
- 
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<any>(null);
   
   
 
@@ -253,9 +255,17 @@ const handleShare = (file: any) => {
 const closeSharePopup = () => {
   setShowSharePopup(false); // Close the share popup
 };
-const handleShareConfidential = (file: UploadedFile) => {
-  console.log('Sharing file as confidential:', file);
-  // Implement confidential share logic here
+
+
+const handleInfo = (file: any) => {
+  setSelectedFile(file);
+  setShowInfoPopup(true);
+  setMenuOpen(null);
+};
+
+const closeInfoPopup = () => {
+  setShowInfoPopup(false);
+  setSelectedFile(null);
 };
 
   return (
@@ -368,6 +378,15 @@ const handleShareConfidential = (file: UploadedFile) => {
                           </span>
                         </button> */}
                         <button
+                          onClick={() => handleInfo(uploadedFile)}
+                          className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                        >
+                          <Info className="w-4 h-4 mr-2" /> Info
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                            File Info
+                          </span>
+                        </button>
+                        <button
                           onClick={() => {
                             removeFile(index);
                             setMenuOpen(null);
@@ -401,6 +420,14 @@ const handleShareConfidential = (file: UploadedFile) => {
           </div>
         )}
       </div>
+      {showInfoPopup && selectedFile && (
+        <InfoPopup
+          file={selectedFile}
+          contract={contract}
+          onClose={closeInfoPopup}
+          currentUser={user?.name || ''}
+        />
+      )}
     </div>
   );
 }

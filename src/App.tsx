@@ -158,7 +158,7 @@ function App() {
               <FileSearch className="w-6 h-6" />
               {isSidebarOpen && <span className="ml-3">File Access</span>}
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab('track')}
               className={`w-full flex items-center px-4 py-3 transition-colors ${
                 activeTab === 'track'
@@ -168,7 +168,7 @@ function App() {
             >
               <FileSearch className="w-6 h-6" />
               {isSidebarOpen && <span className="ml-3">Track</span>}
-            </button>
+            </button> */}
 
           </nav>
         </div>
@@ -213,11 +213,11 @@ function App() {
       <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-16'}`}>
       <Routes>
             <Route path="/" element={<PrivateRoute>{renderContent()}</PrivateRoute>} />
-            <Route path="/file/:cid" element={
+            {/* <Route path="/file/:cid" element={
               <PrivateRoute>
                 <FileAccessCheck contract={contract} user={user} cid={fileAccessData?.cid ?? ''} username={fileAccessData?.username ?? ''} />
               </PrivateRoute>
-            } />
+            } /> */}
           </Routes>
       </main>
     </div>

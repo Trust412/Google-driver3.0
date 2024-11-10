@@ -360,6 +360,57 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "username",
+				"type": "string"
+			}
+		],
+		"name": "getSharedFilesWithAccess",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "string",
+						"name": "filename",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "filetype",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "filesize",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "cid",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "password",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "owner",
+						"type": "string"
+					}
+				],
+				"internalType": "struct FileStorage.File[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "getUserList",
 		"outputs": [
