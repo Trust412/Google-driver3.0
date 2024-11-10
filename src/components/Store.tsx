@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { Search, Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock, Info } from 'lucide-react';
+import { Search, Upload, File, Trash2, Loader2, MoreVertical,Download, Share, Lock, Info, Eye } from 'lucide-react';
 import { Contract  } from 'ethers';
 import SharePopup from './SharePopup';
 import InfoPopup from './InfoPopup';
+import PreviewPopup from './PreviewPopup';
 
 
 interface UploadedFile {
@@ -34,6 +35,8 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredFiles, setFilteredFiles] = useState<UploadedFile[]>([]);
+  const [showPreviewPopup, setShowPreviewPopup] = useState(false);
+  const [previewFile, setPreviewFile] = useState<any>(null);
 
   
 useEffect(() => {
@@ -110,37 +113,44 @@ const generatePasswordFromFilename = (filename: string): string => {
   return hash; // Use this hash as the password
 };
 
-  const encryptFile = (file: File, password: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        // Ensure that event.target.result is not null
-        if (event.target?.result) {
-          const binaryData = event.target?.result as ArrayBuffer;
-          const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(binaryData));
-          const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
-          resolve(encrypted);
-        } else {
-          reject(new Error('File reading failed, result is null.'));
-        }
-      };
-      reader.onerror = (error) => reject(error);
-      reader.readAsArrayBuffer(file); // Read file as an array buffer
-    });
-  };
+const encryptFile = (file: File, password: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      // Ensure that event.target.result is not null
+      if (event.target?.result) {
+        const binaryData = event.target?.result as ArrayBuffer;
+        const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(binaryData));
+        const encrypted = CryptoJS.AES.encrypt(wordArray, password).toString();
+        resolve(encrypted);
+      } else {
+        reject(new Error('File reading failed, result is null.'));
+      }
+    };
+    reader.onerror = (error) => reject(error);
+    reader.readAsArrayBuffer(file); // Read file as an array buffer
+  });
+};
 
+
+  
   const decryptFile = (encryptedData: string, password: string, mimeType: string): Blob => {
-    const decryptedData = CryptoJS.AES.decrypt(encryptedData, password);
-    const decryptedBytes = decryptedData.toString(CryptoJS.enc.Base64);
-    
-    // Convert Base64 string to Uint8Array
-    const byteCharacters = atob(decryptedBytes);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    try {
+      const decryptedData = CryptoJS.AES.decrypt(encryptedData, password);
+      const decryptedBytes = decryptedData.toString(CryptoJS.enc.Base64);
+      
+      // Convert Base64 string to Uint8Array
+      const byteCharacters = atob(decryptedBytes);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const uint8Array = new Uint8Array(byteNumbers);
+      return new Blob([uint8Array], { type: mimeType });
+    } catch (error) {
+      console.error('Decryption error:', error);
+      throw new Error('Failed to decrypt file');
     }
-    const uint8Array = new Uint8Array(byteNumbers);
-    return new Blob([uint8Array], { type: mimeType }); // Adjust MIME type as necessary
   };
 
   const unpinFileFromPinata = async (cid: string) => {
@@ -211,26 +221,37 @@ const generatePasswordFromFilename = (filename: string): string => {
     }
   };
 
-  const handleDownload = async (cid: string,mimeType: string,filename:string) => {
+  const handleDownload = async (cid: string, mimeType: string, filename: string) => {
     const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
     try {
-
       const owner = await contract.findFileOwner(cid);
-      const password = await contract.getFilePassword(cid, owner, username);
+      const [password] = await contract.getFilePassword(cid, owner, username);
 
-      const response = await axios.get(url, { responseType: 'text' });
+      const response = await axios.get(url, { 
+        responseType: 'text',
+        timeout: 10000 // Add timeout
+      });
+
+      if (!response.data) {
+        throw new Error('No data received from IPFS');
+      }
+
       const encryptedData = response.data;
-      const decryptedBlob = decryptFile(encryptedData,password,mimeType);
+      const decryptedBlob = decryptFile(encryptedData, password, mimeType);
       
+      if (!decryptedBlob) {
+        throw new Error('Failed to decrypt file');
+      }
+
       // Create a download link for the decrypted file
       const downloadUrl = window.URL.createObjectURL(decryptedBlob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = filename; // You can set a dynamic file name here
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(downloadUrl); // Clean up
+      window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Error downloading file:', error);
     }
@@ -278,6 +299,23 @@ const closeInfoPopup = () => {
   setSelectedFile(null);
 };
 
+// Update the formatFileSize function to handle BigInt
+const formatFileSize = (bytes: number | BigInt): string => {
+  if (bytes === 0 || bytes === BigInt(0)) return '0 Bytes';
+  
+  // Convert BigInt to number if necessary
+  const bytesNum = typeof bytes === 'bigint' ? Number(bytes) : bytes;
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  
+  // Handle edge case when bytesNum is 0 to avoid -Infinity from Math.log(0)
+  if (bytesNum === 0) return '0 Bytes';
+  
+  const i = Math.min(Math.floor(Math.log(Math.abs(bytesNum)) / Math.log(k)), sizes.length - 1);
+  return parseFloat((bytesNum / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 const SearchBar = () => (
   <div className="mb-4 relative">
     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -292,6 +330,34 @@ const SearchBar = () => (
     />
   </div>
 );
+
+const handlePreview = async (file: any) => {
+  try {
+    const owner = await contract.findFileOwner(file.cid);
+    const [password] = await contract.getFilePassword(file.cid, owner, username);
+    
+    const response = await axios.get(`https://gateway.pinata.cloud/ipfs/${file.cid}`, { 
+      responseType: 'text',
+      timeout: 10000
+    });
+
+    if (!response.data) {
+      throw new Error('No data received from IPFS');
+    }
+
+    const encryptedData = response.data;
+    const decryptedBlob = decryptFile(encryptedData, password, file.type);
+    
+    if (!decryptedBlob) {
+      throw new Error('Failed to decrypt file');
+    }
+
+    setPreviewFile({ blob: decryptedBlob, name: file.file.name, type: file.type });
+    setShowPreviewPopup(true);
+  } catch (error) {
+    console.error('Error previewing file:', error);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
@@ -359,96 +425,101 @@ const SearchBar = () => (
                     <div className="flex items-center space-x-3">
                       <File className="w-6 h-6 text-blue-400" />
                       <div>
-                        <a
-                          href={`https://gateway.pinata.cloud/ipfs/${uploadedFile.cid}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-blue-300 hover:underline"
-                        >
+                        <span className="font-medium text-blue-300">
                           {uploadedFile.file.name}
-                        </a>
+                        </span>
                       </div>
                     </div>
-                    <div className="relative" >
+                    <div className="flex items-center space-x-4">
+                      {/* File size */}
+                      <span className="text-sm text-gray-400">
+                        {formatFileSize(uploadedFile.file.size)}
+                      </span>
+                      
+                      {/* Preview button */}
                       <button
-                        onClick={() => handleMenuClick(index)}
-                        className="p-2 hover:bg-gray-600/20 rounded-full transition-colors"
+                        onClick={() => handlePreview(uploadedFile)}
+                        className="p-2 hover:bg-gray-600/20 rounded-full transition-colors group relative"
                       >
-                        <MoreVertical className="w-5 h-5 text-gray-400" />
+                        <Eye className="w-5 h-5 text-gray-400" />
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 top-full mt-1 text-xs text-white bg-gray-700 rounded-md px-2 py-1 whitespace-nowrap">
+                          Preview File
+                        </span>
                       </button>
-                      {menuOpen === index && (
-                        <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-4 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10">
-                          <button
-                            onClick={() => {
-                              handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
-                              setMenuOpen(null);
-                            }}
-                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                          >
-                            <Download className="w-4 h-4 mr-2" /> Download
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                              Download
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              handleShare(uploadedFile);
-                              setMenuOpen(null);
-                            }}
-                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                          >
-                            <Share className="w-4 h-4 mr-2" />Share
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                              Share
-                            </span>
-                          </button>
-                          
-                          {/* <button
-                           onClick={() => {
-                            handleShareConfidential(uploadedFile);
-                            setMenuOpen(null);
-                          }}
-                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                          >
-                            <Lock className="w-4 h-4 mr-2" />
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                              Share as Confidential
-                            </span>
-                          </button> */}
-                          <button
-                            onClick={() => handleInfo(uploadedFile)}
-                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                          >
-                            <Info className="w-4 h-4 mr-2" /> Info
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                              File Info
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              removeFile(index);
-                              setMenuOpen(null);
-                            }}
-                            className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" /> Unpin
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                              Delete
-                            </span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {/* Render SharePopup if it's open */}
-                    {showSharePopup && (
-                      <SharePopup
-                        // isOpen={showSharePopup}
-                        cid={uploadedFile.cid} // Only send the cid
-                        contract={contract}
-                        onClose={closeSharePopup}
-                      />
-                    )}
 
+                      {/* Menu button */}
+                      <div className="relative">
+                        <button
+                          onClick={() => handleMenuClick(index)}
+                          className="p-2 hover:bg-gray-600/20 rounded-full transition-colors"
+                        >
+                          <MoreVertical className="w-5 h-5 text-gray-400" />
+                        </button>
+                        {menuOpen === index && (
+                          <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-0 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10">
+                            {/* Remove the Preview button from here since it's now outside */}
+                            <button
+                              onClick={() => {
+                                handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
+                                setMenuOpen(null);
+                              }}
+                              className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                            >
+                              <Download className="w-4 h-4 mr-2" /> Download
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                                Download
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleShare(uploadedFile);
+                                setMenuOpen(null);
+                              }}
+                              className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                            >
+                              <Share className="w-4 h-4 mr-2" />Share
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                                Share
+                              </span>
+                            </button>
+                            
+                            {/* <button
+                             onClick={() => {
+                              handleShareConfidential(uploadedFile);
+                              setMenuOpen(null);
+                            }}
+                              className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                            >
+                              <Lock className="w-4 h-4 mr-2" />
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                                Share as Confidential
+                              </span>
+                            </button> */}
+                            <button
+                              onClick={() => handleInfo(uploadedFile)}
+                              className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                            >
+                              <Info className="w-4 h-4 mr-2" /> Info
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                                File Info
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                removeFile(index);
+                                setMenuOpen(null);
+                              }}
+                              className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Unpin
+                              <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
+                                Delete
+                              </span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   
 
@@ -465,6 +536,15 @@ const SearchBar = () => (
           contract={contract}
           onClose={closeInfoPopup}
           currentUser={user?.name || ''}
+        />
+      )}
+      {showPreviewPopup && previewFile && (
+        <PreviewPopup
+          file={previewFile}
+          onClose={() => {
+            setShowPreviewPopup(false);
+            setPreviewFile(null);
+          }}
         />
       )}
     </div>

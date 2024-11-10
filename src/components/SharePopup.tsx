@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface SharePopupProps {
   cid: string;
@@ -12,6 +12,21 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [shareableLink, setShareableLink] = useState(''); // New state for the link
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Focus on input when component mounts
+    inputRef.current?.focus();
+  }, []);
+
+  const handleClose = () => {
+    onClose();
+    // Focus on search input after closing
+    setTimeout(() => {
+      const searchInput = document.querySelector('input[placeholder="Search files..."]');
+      (searchInput as HTMLInputElement)?.focus();
+    }, 0);
+  };
 
   const grantAccess = async () => {
     if (!userExists) return;
@@ -71,6 +86,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
           // Show username input and grant access button if no link generated yet
           <>
             <input
+              ref={inputRef}
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -122,7 +138,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
 
         {error && <p className={`text-center mt-2 ${error.includes('copied') ? 'text-green-500' : 'text-red-500'}`}>{error}</p>}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="mt-6 text-gray-500 hover:text-gray-700 text-sm underline w-full text-center"
         >
           Close

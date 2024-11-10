@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import CryptoJS from 'crypto-js'; // Assuming you're using CryptoJS for decryption
-
+import PreviewPopup from './PreviewPopup';
 interface FileAccessCheckProps {
   contract: any; // The contract instance
   user: any; // The current user (from Auth0 or another auth system)
@@ -18,8 +18,8 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
   const [hasAccess, setHasAccess] = useState(false);
   const [sharedFiles, setSharedFiles] = useState<any[]>([]);
   const [fileOwners, setFileOwners] = useState<{ [key: string]: string }>({});
-  const [showModal, setShowModal] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showPreviewPopup, setShowPreviewPopup] = useState(false);
+  const [previewFile, setPreviewFile] = useState<any>(null);
   const [viewedFiles, setViewedFiles] = useState<Set<string>>(
     new Set(JSON.parse(localStorage.getItem('viewedFiles') || '[]'))
   );
@@ -129,11 +129,8 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
   const handleSharedFileView = async (file: any) => {
     try {
       // Clear existing states
-      setShowModal(false);
-      if (previewUrl) {
-        window.URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
+      setShowPreviewPopup(false);
+      setPreviewFile(null);
       
       // Get file details and password
       const owner = await contract.findFileOwner(file[3]); // Use direct index for CID
@@ -144,11 +141,14 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
       const response = await axios.get(url, { responseType: 'text' });
       
       const decryptedBlob = decryptFile(response.data, password, file[1]); // Use direct index for type
-      const viewUrl = window.URL.createObjectURL(decryptedBlob);
       
-      // Set states
-      setPreviewUrl(viewUrl);
-      setShowModal(true);
+      // Set states for PreviewPopup
+      setPreviewFile({
+        blob: decryptedBlob,
+        name: file[0], // filename is at index 0
+        type: file[1]  // type is at index 1
+      });
+      setShowPreviewPopup(true);
       
       // Mark file as viewed after successful view
       markFileAsViewed(file[3]); // Using CID as unique identifier
@@ -157,59 +157,9 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error viewing shared file:', error);
       setError(`Error viewing file: ${errorMessage}`);
-      if (previewUrl) {
-        window.URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
-      setShowModal(false);
+      setPreviewFile(null);
+      setShowPreviewPopup(false);
     }
-  };
-
-  const ImagePreviewModal = ({ showModal, previewUrl, onClose }: {
-    showModal: boolean;
-    previewUrl: string | null;
-    onClose: () => void;
-  }) => {
-    if (!showModal || !previewUrl) {
-      return null;
-    }
-
-    return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-75 modal-overlay">
-        <div className="relative max-w-2xl w-full max-h-[80vh] bg-white rounded-lg shadow-xl">
-          <button
-            onClick={onClose}
-            className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
-          >
-            <svg 
-              className="w-6 h-6 text-gray-600" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth="2" 
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-
-          <div className="overflow-auto max-h-[80vh] rounded-lg p-4">
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="w-full h-auto object-contain"
-              onError={() => {
-                console.error('Image load error');
-                onClose();
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const handleSharedFileDownload = async (file: any) => {
@@ -284,10 +234,13 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
       const encryptedData = response.data;
       
       const decryptedBlob = decryptFile(encryptedData, password, fileType);
-      const viewUrl = window.URL.createObjectURL(decryptedBlob);
       
-      setPreviewUrl(viewUrl);
-      setShowModal(true);
+      setPreviewFile({
+        blob: decryptedBlob,
+        name: fileName,
+        type: fileType
+      });
+      setShowPreviewPopup(true);
     } catch (error) {
       console.error('Error viewing file:', error);
       setError('Error viewing file.');
@@ -345,6 +298,14 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
     ? sharedFiles.filter(file => file[0].toLowerCase().includes(searchQuery.toLowerCase()))
     : sharedFiles;
 
+  // Add sorting to prioritize unviewed files
+  const sortedFilteredFiles = [...filteredSharedFiles].sort((a, b) => {
+    const isAViewed = viewedFiles.has(a[3]);
+    const isBViewed = viewedFiles.has(b[3]);
+    if (isAViewed === isBViewed) return 0;
+    return isAViewed ? 1 : -1;
+  });
+
   const SharedFilesList = () => (
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
@@ -377,7 +338,7 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
         </p>
       ) : (
         <div className="grid gap-4">
-          {filteredSharedFiles.map((file, index) => {
+          {sortedFilteredFiles.map((file, index) => {
             const isViewed = viewedFiles.has(file[3]);
             return (
               <div 
@@ -478,14 +439,15 @@ if (!hasAccess) {
         </div>
       </div>
       <SharedFilesList />
-      <ImagePreviewModal 
-        showModal={showModal} 
-        previewUrl={previewUrl} 
-        onClose={() => {
-          setShowModal(false);
-          setPreviewUrl(null);
-        }} 
-      />
+      {showPreviewPopup && previewFile && (
+        <PreviewPopup
+          file={previewFile}
+          onClose={() => {
+            setShowPreviewPopup(false);
+            setPreviewFile(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -550,6 +512,15 @@ return (
       </div>
     </div>
     <SharedFilesList />
+    {showPreviewPopup && previewFile && (
+      <PreviewPopup
+        file={previewFile}
+        onClose={() => {
+          setShowPreviewPopup(false);
+          setPreviewFile(null);
+        }}
+      />
+    )}
   </div>
 );
 }
