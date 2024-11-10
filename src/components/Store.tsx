@@ -39,6 +39,9 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const [previewFile, setPreviewFile] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
+  const [filesLoaded, setFilesLoaded] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [deletingFiles, setDeletingFiles] = useState<Set<number>>(new Set());
 
   
 useEffect(() => {
@@ -175,19 +178,28 @@ const encryptFile = (file: File, password: string): Promise<string> => {
   const removeFile = useCallback(async (index: number) => {
     if (index < 0 || index >= files.length) {
       console.error('Index out of bounds:', index);
-      return; // Exit if index is invalid
+      return;
     }
+    
+    // Start deletion animation
+    setDeletingFiles(prev => new Set(prev).add(index));
+    
+    // Wait for animation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     const uploadedFile = files[index];
-    setLoading(true);
     try {
       await unpinFileFromPinata(uploadedFile.cid);
       await contract.deleteFile(username, uploadedFile.file.name);
-      // Update state to remove the file from the list
       setFiles(prev => prev.filter((_, i) => i !== index));
     } catch (error) {
       console.error('Error removing file:', error);
-    }finally{
-      setLoading(false);
+    } finally {
+      setDeletingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(index);
+        return newSet;
+      });
     }
   }, [files]);
 
@@ -195,18 +207,22 @@ const encryptFile = (file: File, password: string): Promise<string> => {
     const url = 'https://api.pinata.cloud/pinning/pinFileToIPFS';
     const formData = new FormData();
     const randomPassword = generatePasswordFromFilename(file.name); 
-    // Encrypt the file before uploading
-    const encryptedFile = await encryptFile(file,randomPassword);
-    // const blob = new Blob([encryptedFile], { type: 'application/octet-stream' }); // Adjust MIME type as necessary
-    formData.append('file', new Blob([encryptedFile]), file.name); // Use original file name for better identification
+    const encryptedFile = await encryptFile(file, randomPassword);
+    formData.append('file', new Blob([encryptedFile]), file.name);
 
     const options = {
       headers: {
         pinata_api_key: import.meta.env.VITE_PINATA_API_KEY,
         pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_API_KEY,
       },
+      onUploadProgress: (progressEvent: any) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        setUploadProgress(percentCompleted);
+      },
     };
+
     setLoading(true);
+    setUploadProgress(0);
     try {
       const response = await axios.post(url, formData, options);
       const cid = response.data.IpfsHash; // Get the IPFS CID from the response
@@ -214,12 +230,13 @@ const encryptFile = (file: File, password: string): Promise<string> => {
       
       await contract.uploadFile(username, file.name, file.type, file.size, cid, randomPassword);
 
-      // Update state with new file and its CID
+      // Update files state directly instead of triggering a refresh
       setFiles(prev => [...prev, { file, cid, type: file.type, password: randomPassword }]);
     } catch (error) {
       console.error('Error uploading file to Pinata:', error);
-    }finally{
+    } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -261,109 +278,115 @@ const encryptFile = (file: File, password: string): Promise<string> => {
   };
 
   const getFiles = useCallback(async () => {
+    // Add check to prevent duplicate calls
+    if (!username) return;
+    
     try {
-        const userFiles = await contract.getFiles(username); // Replace 'username' with actual username
-        const uploadedFiles = await Promise.all(userFiles.map(async (file: any) => ({
-            file: { name: file.filename, size: file.filesize, type: file.filetype },
-            cid: file.cid,
-            type: file.filetype
-        })));
-        setFiles(uploadedFiles);
-        sessionStorage.setItem('filesFetched', 'true');
+      const userFiles = await contract.getFiles(username);
+      const uploadedFiles = await Promise.all(userFiles.map(async (file: any) => ({
+        file: { name: file.filename, size: file.filesize, type: file.filetype },
+        cid: file.cid,
+        type: file.filetype
+      })));
+      setFiles(uploadedFiles);
     } catch (error) {
-        console.error('Error retrieving files:', error);
+      console.error('Error retrieving files:', error);
     }
-}, [contract, username]);
+  }, [contract, username]);
+
+  // Replace the existing useEffect with this one
+  useEffect(() => {
+    if (username && files.length === 0) {
+      getFiles();
+    }
+  }, [username, getFiles]);
+
+  const handleShare = async (file: any) => {
+    try {
+      setUploadedFile(file);
+      setShowSharePopup(true);
+    } catch (error) {
+      console.error('Error sharing file:', error);
+    }
+  };
+  const closeSharePopup = () => {
+    setShowSharePopup(false); // Close the share popup
+  };
 
 
+  const handleInfo = (file: any) => {
+    setSelectedFile(file);
+    setShowInfoPopup(true);
+    setMenuOpen(null);
+  };
 
-useEffect(() => {
-  console.log("Fetching files on initial mount");
-  getFiles();
-}, [getFiles]);
+  const closeInfoPopup = () => {
+    setShowInfoPopup(false);
+    setSelectedFile(null);
+  };
 
-const handleShare = (file: any) => {
-  setUploadedFile(file);
-    setShowSharePopup(true);
-};
-const closeSharePopup = () => {
-  setShowSharePopup(false); // Close the share popup
-};
-
-
-const handleInfo = (file: any) => {
-  setSelectedFile(file);
-  setShowInfoPopup(true);
-  setMenuOpen(null);
-};
-
-const closeInfoPopup = () => {
-  setShowInfoPopup(false);
-  setSelectedFile(null);
-};
-
-// Update the formatFileSize function to handle BigInt
-const formatFileSize = (bytes: number | BigInt): string => {
-  if (bytes === 0 || bytes === BigInt(0)) return '0 Bytes';
-  
-  // Convert BigInt to number if necessary
-  const bytesNum = typeof bytes === 'bigint' ? Number(bytes) : bytes;
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  
-  // Handle edge case when bytesNum is 0 to avoid -Infinity from Math.log(0)
-  if (bytesNum === 0) return '0 Bytes';
-  
-  const i = Math.min(Math.floor(Math.log(Math.abs(bytesNum)) / Math.log(k)), sizes.length - 1);
-  return parseFloat((bytesNum / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-const SearchBar = () => (
-  <div className="mb-4 relative">
-    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-    <input
-      type="text"
-      placeholder="Search files..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      className="w-full pl-10 pr-4 py-2 bg-gray-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      autoFocus
-      onBlur={(e) => e.target.focus()}
-    />
-  </div>
-);
-
-const handlePreview = async (file: any) => {
-  try {
-    setPreviewLoading(true); // Start loading
-    const owner = await contract.findFileOwner(file.cid);
-    const [password] = await contract.getFilePassword(file.cid, owner, username);
+  // Update the formatFileSize function to handle BigInt
+  const formatFileSize = (bytes: number | BigInt): string => {
+    if (bytes === 0 || bytes === BigInt(0)) return '0 Bytes';
     
-    const response = await axios.get(`https://gateway.pinata.cloud/ipfs/${file.cid}`, { 
-      responseType: 'text',
-      timeout: 10000
-    });
-
-    if (!response.data) {
-      throw new Error('No data received from IPFS');
-    }
-
-    const encryptedData = response.data;
-    const decryptedBlob = decryptFile(encryptedData, password, file.type);
+    // Convert BigInt to number if necessary
+    const bytesNum = typeof bytes === 'bigint' ? Number(bytes) : bytes;
     
-    if (!decryptedBlob) {
-      throw new Error('Failed to decrypt file');
-    }
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    
+    // Handle edge case when bytesNum is 0 to avoid -Infinity from Math.log(0)
+    if (bytesNum === 0) return '0 Bytes';
+    
+    const i = Math.min(Math.floor(Math.log(Math.abs(bytesNum)) / Math.log(k)), sizes.length - 1);
+    return parseFloat((bytesNum / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
-    setPreviewFile({ blob: decryptedBlob, name: file.file.name, type: file.type });
-    setShowPreviewPopup(true);
-  } catch (error) {
-    console.error('Error previewing file:', error);
-  } finally {
-    setPreviewLoading(false); // End loading regardless of success/failure
-  }
-};
+  const SearchBar = () => (
+    <div className="mb-4 relative">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <input
+        type="text"
+        placeholder="Search files..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full pl-10 pr-4 py-2 bg-gray-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        autoFocus
+        // onBlur={(e) => e.target.focus()}
+      />
+    </div>
+  );
+
+  const handlePreview = async (file: any) => {
+    try {
+      setPreviewLoading(true); // Start loading
+      const owner = await contract.findFileOwner(file.cid);
+      const [password] = await contract.getFilePassword(file.cid, owner, username);
+      
+      const response = await axios.get(`https://gateway.pinata.cloud/ipfs/${file.cid}`, { 
+        responseType: 'text',
+        timeout: 10000
+      });
+
+      if (!response.data) {
+        throw new Error('No data received from IPFS');
+      }
+
+      const encryptedData = response.data;
+      const decryptedBlob = decryptFile(encryptedData, password, file.type);
+      
+      if (!decryptedBlob) {
+        throw new Error('Failed to decrypt file');
+      }
+
+      setPreviewFile({ blob: decryptedBlob, name: file.file.name, type: file.type });
+      setShowPreviewPopup(true);
+    } catch (error) {
+      console.error('Error previewing file:', error);
+    } finally {
+      setPreviewLoading(false); // End loading regardless of success/failure
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-8">
@@ -401,7 +424,13 @@ const handlePreview = async (file: any) => {
           <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50">
             <div className="text-center">
               <Loader2 className="w-16 h-16 text-white animate-spin" />
-              <p className="text-white mt-4">Processing...</p>
+              <p className="text-white mt-4">Uploading... {uploadProgress}%</p>
+              <div className="w-48 h-2 bg-gray-700 rounded-full mt-2">
+                <div 
+                  className="h-full bg-blue-500 rounded-full transition-all duration-300" 
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -426,7 +455,10 @@ const handlePreview = async (file: any) => {
                 {filteredFiles.map((uploadedFile, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between bg-gray-700/50 p-4 rounded-lg"
+                    className={`flex items-center justify-between bg-gray-700/50 p-4 rounded-lg
+                      transition-all duration-500 transform
+                      ${deletingFiles.has(index) ? 'scale-0 opacity-0 rotate-12' : 'scale-100 opacity-100 rotate-0'}
+                    `}
                   >
                     <div className="flex items-center space-x-3">
                       <File className="w-6 h-6 text-blue-400" />
@@ -483,7 +515,7 @@ const handlePreview = async (file: any) => {
                         {menuOpen === index && !downloadLoading && (
                           <div 
                             ref={(el) => (menuRefs.current[index] = el)} 
-                            className="absolute right-0 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10"
+                            className="absolute right-0 bottom-full mb-1 w-28 bg-gray-800 rounded-md shadow-lg z-10"
                           >
                             <button
                               onClick={() => {
@@ -573,6 +605,13 @@ const handlePreview = async (file: any) => {
             setShowPreviewPopup(false);
             setPreviewFile(null);
           }}
+        />
+      )}
+      {showSharePopup && uploadedFile && (
+        <SharePopup
+          cid={uploadedFile.cid}
+          onClose={closeSharePopup}
+          contract={contract}
         />
       )}
     </div>

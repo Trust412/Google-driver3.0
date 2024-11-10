@@ -25,9 +25,15 @@ function App() {
   const privateKey = import.meta.env.VITE_PRIVATE_KEY;
 
 
-  const provider = new JsonRpcProvider(rpcUrl); // Replace with your RPC URL
-  const signer = new Wallet(privateKey, provider); // Replace with your private key
+  const provider = new JsonRpcProvider(rpcUrl);
+  const signer = new Wallet(privateKey, provider);
+  
+  if (!contractAddress) {
+    throw new Error('Environment variable CONTRACT_ADDRESS must be defined');
+  }
+  const contract = new Contract(contractAddress, driveABI, signer);
 
+  const [userChecked, setUserChecked] = useState(false);
 
   useEffect(() => {
     // Parse URL parameters when the app loads
@@ -45,37 +51,17 @@ function App() {
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
-      // Check if the user is authenticated
       if (!isAuthenticated && !isLoading) {
-        // Redirect to login page if not authenticated
+        console.log("Redirecting to login page");
         loginWithRedirect({
           appState: {
             returnTo: window.location.pathname + window.location.search,
           },
         });
       } 
-      // Check for Auth0 code and state in URL after redirect
       else if (isAuthenticated && window.location.search.includes("code=") && window.location.search.includes("state=")) {
         try {
           const { appState } = await handleRedirectCallback();
-          
-          // Check if user exists and add them if they don't
-          if (user?.name) {
-            try {
-              const users = await contract.getUserList();
-              const userExists = users.includes(user.name);
-              
-              if (!userExists) {
-                // Add the user if they don't exist
-                await contract.addUser(user.name);
-                console.log('New user registered:', user.name);
-              }
-            } catch (error) {
-              console.error('Error checking/adding user:', error);
-            }
-          }
-
-          // Navigate to the original route or default to '/'
           navigate(appState?.returnTo || '/');
         } catch (error) {
           console.error('Error handling redirect callback:', error);
@@ -86,10 +72,29 @@ function App() {
     handleAuthRedirect();
   }, [isAuthenticated, isLoading, handleRedirectCallback, navigate, loginWithRedirect]);
 
-  if (!contractAddress) {
-    throw new Error('Environment variable CONTRACT_ADDRESS must be defined');
-  }
-  const contract = new Contract(contractAddress, driveABI, signer);
+  useEffect(() => {
+    const checkAndAddUser = async () => {
+      if (isAuthenticated && user?.name && !userChecked) {
+        try {
+          const users = await contract.getUserList();
+          const userExists = users.includes(user.name);
+          
+          if (!userExists) {
+            const tx = await contract.addUser(user.name);
+            await tx.wait();
+            console.log('New user registered:', user.name);
+          } else {
+            console.log('User already exists:', user.name);
+          }
+          setUserChecked(true);
+        } catch (error) {
+          console.error('Error checking/adding user:', error);
+        }
+      }
+    };
+
+    checkAndAddUser();
+  }, [isAuthenticated, user, contract, userChecked]);
 
   const renderContent = () => {
     switch (activeTab) {
