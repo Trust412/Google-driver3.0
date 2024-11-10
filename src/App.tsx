@@ -50,7 +50,7 @@ function App() {
         // Redirect to login page if not authenticated
         loginWithRedirect({
           appState: {
-            returnTo: window.location.pathname + window.location.search, // Save current URL
+            returnTo: window.location.pathname + window.location.search,
           },
         });
       } 
@@ -58,6 +58,23 @@ function App() {
       else if (isAuthenticated && window.location.search.includes("code=") && window.location.search.includes("state=")) {
         try {
           const { appState } = await handleRedirectCallback();
+          
+          // Check if user exists and add them if they don't
+          if (user?.name) {
+            try {
+              const users = await contract.getUserList();
+              const userExists = users.includes(user.name);
+              
+              if (!userExists) {
+                // Add the user if they don't exist
+                await contract.addUser(user.name);
+                console.log('New user registered:', user.name);
+              }
+            } catch (error) {
+              console.error('Error checking/adding user:', error);
+            }
+          }
+
           // Navigate to the original route or default to '/'
           navigate(appState?.returnTo || '/');
         } catch (error) {

@@ -41,6 +41,19 @@
 		"inputs": [
 			{
 				"internalType": "string",
+				"name": "username",
+				"type": "string"
+			}
+		],
+		"name": "addUser",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
 				"name": "owner",
 				"type": "string"
 			},
@@ -225,6 +238,19 @@
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "username",
+				"type": "string"
+			}
+		],
+		"name": "UserAdded",
+		"type": "event"
 	},
 	{
 		"inputs": [
