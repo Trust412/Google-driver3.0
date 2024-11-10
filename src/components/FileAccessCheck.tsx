@@ -24,6 +24,8 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
     new Set(JSON.parse(localStorage.getItem('viewedFiles') || '[]'))
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewLoading, setViewLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   // Get URL parameters
   const { cid: urlCid} = useParams();
@@ -100,79 +102,16 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
 
   const handleDownload = async () => {
     if (!fileDetails) return;
-
-    const { fileCid, fileType, fileName, password } = fileDetails;
-    const url = `https://gateway.pinata.cloud/ipfs/${fileCid}`;
-
     try {
-      
-      const response = await axios.get(url, { responseType: 'text' });
-      const encryptedData = response.data;
-      
-    
-      const decryptedBlob = decryptFile(encryptedData, password, fileType);
-
-      const downloadUrl = window.URL.createObjectURL(decryptedBlob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(downloadUrl); // Clean up
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      setError('Error downloading file.');
-    }
-  };
-
-  const handleSharedFileView = async (file: any) => {
-    try {
-      // Clear existing states
-      setShowPreviewPopup(false);
-      setPreviewFile(null);
-      
-      // Get file details and password
-      const owner = await contract.findFileOwner(file[3]); // Use direct index for CID
-      const [password] = await contract.getFilePassword(file[3], owner, user.name);
-      
-      // Fetch and decrypt file
-      const url = `https://gateway.pinata.cloud/ipfs/${file[3]}`; // Use CID directly
-      const response = await axios.get(url, { responseType: 'text' });
-      
-      const decryptedBlob = decryptFile(response.data, password, file[1]); // Use direct index for type
-      
-      // Set states for PreviewPopup
-      setPreviewFile({
-        blob: decryptedBlob,
-        name: file[0], // filename is at index 0
-        type: file[1]  // type is at index 1
-      });
-      setShowPreviewPopup(true);
-      
-      // Mark file as viewed after successful view
-      markFileAsViewed(file[3]); // Using CID as unique identifier
-      
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error viewing shared file:', error);
-      setError(`Error viewing file: ${errorMessage}`);
-      setPreviewFile(null);
-      setShowPreviewPopup(false);
-    }
-  };
-
-  const handleSharedFileDownload = async (file: any) => {
-    try {
-      const owner = await contract.findFileOwner(file.cid);
-      const [password, fileCid, fileType, fileName] = await contract.getFilePassword(file.cid, owner, user.name);
-      
+      setDownloadLoading(true); // Start loading
+      const { fileCid, fileType, fileName, password } = fileDetails;
       const url = `https://gateway.pinata.cloud/ipfs/${fileCid}`;
+      
       const response = await axios.get(url, { responseType: 'text' });
       const encryptedData = response.data;
       
       const decryptedBlob = decryptFile(encryptedData, password, fileType);
-      
+
       const downloadUrl = window.URL.createObjectURL(decryptedBlob);
       const a = document.createElement('a');
       a.href = downloadUrl;
@@ -182,8 +121,70 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
       a.remove();
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
+      console.error('Error downloading file:', error);
+      setError('Error downloading file.');
+    } finally {
+      setDownloadLoading(false); // End loading
+    }
+  };
+
+  const handleSharedFileView = async (file: any) => {
+    try {
+      setViewLoading(true); // Start loading
+      setShowPreviewPopup(false);
+      setPreviewFile(null);
+      
+      const owner = await contract.findFileOwner(file[3]);
+      const [password] = await contract.getFilePassword(file[3], owner, user.name);
+      
+      const url = `https://gateway.pinata.cloud/ipfs/${file[3]}`;
+      const response = await axios.get(url, { responseType: 'text' });
+      
+      const decryptedBlob = decryptFile(response.data, password, file[1]);
+      
+      setPreviewFile({
+        blob: decryptedBlob,
+        name: file[0],
+        type: file[1]
+      });
+      setShowPreviewPopup(true);
+      markFileAsViewed(file[3]);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error viewing shared file:', error);
+      setError(`Error viewing file: ${errorMessage}`);
+      setPreviewFile(null);
+      setShowPreviewPopup(false);
+    } finally {
+      setViewLoading(false); // End loading
+    }
+  };
+
+  const handleSharedFileDownload = async (file: any) => {
+    try {
+      setDownloadLoading(true); // Start loading
+      const owner = await contract.findFileOwner(file[3]);
+      const [password] = await contract.getFilePassword(file[3], owner, user.name);
+      
+      const url = `https://gateway.pinata.cloud/ipfs/${file[3]}`;
+      const response = await axios.get(url, { responseType: 'text' });
+      const encryptedData = response.data;
+      
+      const decryptedBlob = decryptFile(encryptedData, password, file[1]);
+      
+      const downloadUrl = window.URL.createObjectURL(decryptedBlob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = file[0];
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
       console.error('Error downloading shared file:', error);
       setError('Error downloading file.');
+    } finally {
+      setDownloadLoading(false); // End loading
     }
   };
 
@@ -227,6 +228,7 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
   const handleFileView = async () => {
     if (!fileDetails) return;
     try {
+      setViewLoading(true); // Start loading
       const { fileCid, fileType, fileName, password } = fileDetails;
       const url = `https://gateway.pinata.cloud/ipfs/${fileCid}`;
       
@@ -244,6 +246,8 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
     } catch (error) {
       console.error('Error viewing file:', error);
       setError('Error viewing file.');
+    } finally {
+      setViewLoading(false); // End loading
     }
   };
 
@@ -368,22 +372,47 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
                 </div>
                 <button
                   onClick={() => handleSharedFileDownload(file)}
-                  className="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap hover:scale-105"
+                  disabled={downloadLoading}
+                  className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap hover:scale-105 disabled:opacity-50"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download
+                  {downloadLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => handleSharedFileView(file)}
-                  className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap hover:scale-105"
+                  disabled={viewLoading}
+                  className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap hover:scale-105 disabled:opacity-50"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  View
+                  {viewLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      View
+                    </>
+                  )}
                 </button>
               </div>
             );
@@ -478,23 +507,49 @@ return (
           <div className="flex gap-4 justify-center">
             <button
               onClick={handleDownload}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+              disabled={downloadLoading}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download File
+              {downloadLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download File
+                </>
+              )}
             </button>
             
             <button
               onClick={handleFileView}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+              disabled={viewLoading}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              View File
+              {viewLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  View File
+                </>
+              )}
             </button>
           </div>
           

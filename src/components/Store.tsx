@@ -37,6 +37,8 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const [filteredFiles, setFilteredFiles] = useState<UploadedFile[]>([]);
   const [showPreviewPopup, setShowPreviewPopup] = useState(false);
   const [previewFile, setPreviewFile] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   
 useEffect(() => {
@@ -222,14 +224,14 @@ const encryptFile = (file: File, password: string): Promise<string> => {
   };
 
   const handleDownload = async (cid: string, mimeType: string, filename: string) => {
-    const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
     try {
+      setDownloadLoading(true); // Start loading
       const owner = await contract.findFileOwner(cid);
       const [password] = await contract.getFilePassword(cid, owner, username);
 
-      const response = await axios.get(url, { 
+      const response = await axios.get(`https://gateway.pinata.cloud/ipfs/${cid}`, { 
         responseType: 'text',
-        timeout: 10000 // Add timeout
+        timeout: 10000
       });
 
       if (!response.data) {
@@ -243,7 +245,6 @@ const encryptFile = (file: File, password: string): Promise<string> => {
         throw new Error('Failed to decrypt file');
       }
 
-      // Create a download link for the decrypted file
       const downloadUrl = window.URL.createObjectURL(decryptedBlob);
       const a = document.createElement('a');
       a.href = downloadUrl;
@@ -254,6 +255,8 @@ const encryptFile = (file: File, password: string): Promise<string> => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Error downloading file:', error);
+    } finally {
+      setDownloadLoading(false); // End loading
     }
   };
 
@@ -333,6 +336,7 @@ const SearchBar = () => (
 
 const handlePreview = async (file: any) => {
   try {
+    setPreviewLoading(true); // Start loading
     const owner = await contract.findFileOwner(file.cid);
     const [password] = await contract.getFilePassword(file.cid, owner, username);
     
@@ -356,6 +360,8 @@ const handlePreview = async (file: any) => {
     setShowPreviewPopup(true);
   } catch (error) {
     console.error('Error previewing file:', error);
+  } finally {
+    setPreviewLoading(false); // End loading regardless of success/failure
   }
 };
 
@@ -425,9 +431,16 @@ const handlePreview = async (file: any) => {
                     <div className="flex items-center space-x-3">
                       <File className="w-6 h-6 text-blue-400" />
                       <div>
-                        <span className="font-medium text-blue-300">
-                          {uploadedFile.file.name}
-                        </span>
+                        <div>
+                          <a 
+                            href={`https://gateway.pinata.cloud/ipfs/${uploadedFile.cid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-blue-300 hover:text-blue-400 transition-colors hover:underline"
+                          >
+                            {uploadedFile.file.name}
+                          </a>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -440,24 +453,38 @@ const handlePreview = async (file: any) => {
                       <button
                         onClick={() => handlePreview(uploadedFile)}
                         className="p-2 hover:bg-gray-600/20 rounded-full transition-colors group relative"
+                        disabled={previewLoading}
                       >
-                        <Eye className="w-5 h-5 text-gray-400" />
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 top-full mt-1 text-xs text-white bg-gray-700 rounded-md px-2 py-1 whitespace-nowrap">
-                          Preview File
-                        </span>
+                        {previewLoading ? (
+                          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                        ) : (
+                          <>
+                            <Eye className="w-5 h-5 text-gray-400" />
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 top-full mt-1 text-xs text-white bg-gray-700 rounded-md px-2 py-1 whitespace-nowrap">
+                              Preview File
+                            </span>
+                          </>
+                        )}
                       </button>
 
-                      {/* Menu button */}
+                      {/* Menu button with loading state */}
                       <div className="relative">
                         <button
                           onClick={() => handleMenuClick(index)}
                           className="p-2 hover:bg-gray-600/20 rounded-full transition-colors"
+                          disabled={downloadLoading}
                         >
-                          <MoreVertical className="w-5 h-5 text-gray-400" />
+                          {downloadLoading ? (
+                            <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                          ) : (
+                            <MoreVertical className="w-5 h-5 text-gray-400" />
+                          )}
                         </button>
-                        {menuOpen === index && (
-                          <div ref={(el) => (menuRefs.current[index] = el)} className="absolute right-0 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10">
-                            {/* Remove the Preview button from here since it's now outside */}
+                        {menuOpen === index && !downloadLoading && (
+                          <div 
+                            ref={(el) => (menuRefs.current[index] = el)} 
+                            className="absolute right-0 mt-1 w-28 bg-gray-800 rounded-md shadow-lg z-10"
+                          >
                             <button
                               onClick={() => {
                                 handleDownload(uploadedFile.cid, uploadedFile.type, uploadedFile.file.name);
@@ -465,7 +492,8 @@ const handlePreview = async (file: any) => {
                               }}
                               className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
                             >
-                              <Download className="w-4 h-4 mr-2" /> Download
+                              <Download className="w-4 h-4 mr-2" />
+                              <span>Download</span>
                               <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
                                 Download
                               </span>
