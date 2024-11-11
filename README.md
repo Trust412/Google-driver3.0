@@ -17,8 +17,8 @@ Google Drive 3.0 allows users to store and manage files in a decentralized way, 
 - **Vite**: Build tool for bundling the React application.     
 - **Ethers.js**: Library for blockchain interaction.     
 
-![Alt text]()
-<img src="./public/icons/Upload File.png" alt="Project Screenshot" width="300">
+
+<img src="./public/icons/Upload File.png" alt="Project Screenshot" width="500">
 
 ### Environment Variables     
 In the root of your project, create a `.env` file and add the following variables. These are necessary for connecting to the blockchain, interacting with IPFS via Pinata, and accessing your smart contract.     
