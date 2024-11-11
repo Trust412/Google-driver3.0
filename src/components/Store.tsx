@@ -39,7 +39,6 @@ const Store: React.FC<StoreProps> = ({ user,contract }) => {
   const [previewFile, setPreviewFile] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
-  const [filesLoaded, setFilesLoaded] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [deletingFiles, setDeletingFiles] = useState<Set<number>>(new Set());
 
@@ -542,19 +541,6 @@ const encryptFile = (file: File, password: string): Promise<string> => {
                                 Share
                               </span>
                             </button>
-                            
-                            {/* <button
-                             onClick={() => {
-                              handleShareConfidential(uploadedFile);
-                              setMenuOpen(null);
-                            }}
-                              className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
-                            >
-                              <Lock className="w-4 h-4 mr-2" />
-                              <span className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-full ml-2 text-xs text-white bg-gray-700 rounded-md px-2 py-1">
-                                Share as Confidential
-                              </span>
-                            </button> */}
                             <button
                               onClick={() => handleInfo(uploadedFile)}
                               className="block w-full px-2 py-2 text-sm text-gray-300 hover:bg-gray-700 flex items-center group"
