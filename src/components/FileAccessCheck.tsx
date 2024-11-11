@@ -27,11 +27,11 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
   const [viewLoading, setViewLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
 
-  // Get URL parameters
+ 
   const { cid: urlCid} = useParams();
 
   useEffect(() => {
-    // If URL parameters exist, try to check access automatically
+    
     if (urlCid && contract && user) {
       checkAccess(urlCid);
     }
