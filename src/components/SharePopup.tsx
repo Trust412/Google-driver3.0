@@ -15,6 +15,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+
     // Focus on input when component mounts
     inputRef.current?.focus();
   }, []);
@@ -29,6 +30,7 @@ const SharePopup: React.FC<SharePopupProps> = ({ cid, onClose, contract }) => {
   };
 
   const grantAccess = async () => {
+    console.log("granting access");
     if (!userExists) return;
 
     setLoading(true);
