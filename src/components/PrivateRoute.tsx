@@ -13,6 +13,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
   // Check if user is not authenticated
   if (!isAuthenticated) {
+    console.log("redirecting to login");
     // Redirect to login, storing the intended path
     loginWithRedirect({
       appState: {
