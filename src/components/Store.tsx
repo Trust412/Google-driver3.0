@@ -118,6 +118,7 @@ const generatePasswordFromFilename = (filename: string): string => {
 };
 
 const encryptFile = (file: File, password: string): Promise<string> => {
+  console.log("encrypting file");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -139,6 +140,7 @@ const encryptFile = (file: File, password: string): Promise<string> => {
 
   
   const decryptFile = (encryptedData: string, password: string, mimeType: string): Blob => {
+    console.log("decrypting file");
     try {
       const decryptedData = CryptoJS.AES.decrypt(encryptedData, password);
       const decryptedBytes = decryptedData.toString(CryptoJS.enc.Base64);
