@@ -51,7 +51,7 @@ npm run build
 ```     
 ### Usage     
 - Uploading Files: Users can upload files, which are encrypted with AES encryption before being stored on IPFS via Pinata.     
-- Sharing Files: Owners can securely share encrypted files with other users and manage access permissions.     
+- Sharing Files: Owners can securely share encrypted files with other users and manage access permissions..     
 - Tracking Access: Owners can view a list of users who have access to each file and revoke access if needed..     
 ### License     
 This project is licensed under the MIT License. See the LICENSE file for details.     
