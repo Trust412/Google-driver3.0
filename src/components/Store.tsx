@@ -359,6 +359,7 @@ const encryptFile = (file: File, password: string): Promise<string> => {
   );
 
   const handlePreview = async (file: any) => {
+    console.log("previewing file");
     try {
       setPreviewLoading(true); // Start loading
       const owner = await contract.findFileOwner(file.cid);
