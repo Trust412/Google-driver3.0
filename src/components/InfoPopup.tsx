@@ -52,6 +52,7 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ file, onClose, contract, currentU
   }, [file.cid, contract]);
 
   const fetchUsersWithAccess = async () => {
+    console.log("fetching users with access");
     try {
       const users = await contract.getUsersWithAccess(file.cid);
       const otherUsers = Array.isArray(users) 
@@ -64,7 +65,8 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ file, onClose, contract, currentU
     }
   };
 
-  const handleRevokeAccess = async (username: string) => {
+  const handleRevokeAccess = async (username: string) => {  
+    console.log("revoking access");
     try {
       setLoading(true);
       const owner = await contract.findFileOwner(file.cid);
@@ -85,6 +87,7 @@ const InfoPopup: React.FC<InfoPopupProps> = ({ file, onClose, contract, currentU
   };
 
   const formatFileSize = (bytes: number | bigint) => {
+    console.log("formatting file size");
     // Convert BigInt to string first
     const numBytes = typeof bytes === 'bigint' ? Number(bytes) : bytes;
     
