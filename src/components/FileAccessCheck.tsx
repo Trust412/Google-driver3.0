@@ -74,6 +74,7 @@ const FileAccessCheck: React.FC<FileAccessCheckProps> = ({ contract, user }) => 
   }, [contract, user]);
 
   const fetchSharedFiles = async () => {
+    console.log("fetching shared files");
     try {
       setLoading(true);
       const files = await contract.getSharedFilesWithAccess(user.name);
