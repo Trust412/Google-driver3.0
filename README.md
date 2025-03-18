@@ -33,7 +33,7 @@ VITE_PINATA_SECRET_API_KEY=    # Pinata secret API key for IPFS storage
 Follow these steps to set up and run Google Drive 3.0 locally:     
 1. Clone the Repository:     
 ```bash     
-git clone https://github.com/Harsha6142611/GoogleDrive3.0.git     
+git clone https://github.com/Trust412/GoogleDrive3.0.git     
 cd GoogleDrive3.0     
 ```     
 2. Install Dependencies:     
@@ -58,6 +58,6 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ### Contributing     
 Contributions are welcome! Please feel free to submit a Pull Request.     
 ### Contact     
-For any questions or feedback, please reach out to the project maintainer at **pasupulaharsha7006@gmail.com**.     
+For any questions or feedback, please reach out to the project maintainer at **rannieturla727@gmail.com**.     
 Last Updated: 08-11-2024     
 ## Last Updated: 09-11-2024 12:53:53.84 
