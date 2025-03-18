@@ -58,6 +58,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ### Contributing     
 Contributions are welcome! Please feel free to submit a Pull Request.     
 ### Contact     
-For any questions or feedback, please reach out to the project maintainer at **rannieturla727@gmail.com**.     
-Last Updated: 08-11-2024     
-## Last Updated: 09-11-2024 12:53:53.84 
+For any questions or feedback, please reach out to the project maintainer at **rannieturla727@gmail.com**.
